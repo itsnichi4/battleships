@@ -1,0 +1,28 @@
+table {
+    border: 1px solid black;
+    border-collapse: collapse;
+    margin: 20px auto;
+  }
+  
+  td {
+    width: 30px;
+    height: 30px;
+    border: 1px solid black;
+    background-color: lightblue;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  
+  td.ship {
+    background-color: gray;
+  }
+  
+  td.hit {
+    background-color: red;
+  }
+  
+  td.miss {
+    background-color: white;
+  }
+  
