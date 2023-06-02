@@ -12,12 +12,16 @@ const HIT_COLOR = "red";
 const MISS_COLOR = "white";
 
 const board = new Array(ROWS).fill(null).map(() => new Array(COLS).fill(null));
+const aiBoard = new Array(ROWS)
+  .fill(null)
+  .map(() => new Array(COLS).fill(null));
 
-for (const shipType of SHIPS) {
-  placeShipRandomly(shipType);
-}
+const playerBoard = document.createElement("div");
+playerBoard.id = "player-board";
+document.getElementById("game").appendChild(playerBoard);
 
-const table = document.createElement("table");
+const playerTable = document.createElement("table");
+playerBoard.appendChild(playerTable);
 
 for (let i = 0; i < ROWS; i++) {
   const row = document.createElement("tr");
@@ -40,32 +44,82 @@ for (let i = 0; i < ROWS; i++) {
     }
 
     cell.addEventListener("click", () => {
-      handleCellClick(i, j, cell);
+      handleCellClick(i, j, cell, board);
     });
 
     row.appendChild(cell);
   }
 
-  table.appendChild(row);
+  playerTable.appendChild(row);
 }
 
-document.getElementById("game").appendChild(table);
+const aiBoardElement = document.createElement("div");
+aiBoardElement.id = "ai-board";
+document.getElementById("game").appendChild(aiBoardElement);
 
-document.body.appendChild(table);
+const aiTable = document.createElement("table");
+aiBoardElement.appendChild(aiTable);
+
+for (let i = 0; i < ROWS; i++) {
+  const row = document.createElement("tr");
+
+  for (let j = 0; j < COLS; j++) {
+    const cell = document.createElement("td");
+
+    switch (aiBoard[i][j]) {
+      case "hit":
+        cell.classList.add("hit");
+        break;
+      case "miss":
+        cell.classList.add("miss");
+        break;
+      default:
+        break;
+    }
+
+    row.appendChild(cell);
+  }
+
+  aiTable.appendChild(row);
+}
+
+for (const shipType of SHIPS) {
+  placeShipRandomly(shipType);
+}
 
 function placeShipRandomly(shipType) {
   let isHorizontal = Math.random() < 0.5;
   let shipLength = shipType.length;
-  let shipCoords;
+  let playerShipCoords, aiShipCoords;
 
   do {
-    let row = Math.floor(Math.random() * ROWS);
-    let col = Math.floor(Math.random() * COLS);
-    shipCoords = generateShipCoords(row, col, shipLength, isHorizontal);
-  } while (!checkShipPlacement(shipCoords));
+    let playerRow = Math.floor(Math.random() * ROWS);
+    let playerCol = Math.floor(Math.random() * COLS);
+    playerShipCoords = generateShipCoords(
+      playerRow,
+      playerCol,
+      shipLength,
+      isHorizontal
+    );
+  } while (!checkShipPlacement(playerShipCoords, board));
 
-  for (const [row, col] of shipCoords) {
+  do {
+    let aiRow = Math.floor(Math.random() * ROWS);
+    let aiCol = Math.floor(Math.random() * COLS);
+    aiShipCoords = generateShipCoords(aiRow, aiCol, shipLength, isHorizontal);
+  } while (!checkShipPlacement(aiShipCoords, aiBoard));
+
+  for (const [row, col] of playerShipCoords) {
     board[row][col] = "ship";
+  }
+
+  for (const [row, col] of aiShipCoords) {
+    aiBoard[row][col] = "ship";
+  }
+
+  for (const [row, col] of aiShipCoords) {
+    const aiCell = aiTable.rows[row].cells[col];
+    aiCell.classList.add("ship");
   }
 }
 
@@ -85,7 +139,7 @@ function generateShipCoords(row, col, length, isHorizontal) {
   return coords;
 }
 
-function checkShipPlacement(shipCoords) {
+function checkShipPlacement(shipCoords, board) {
   for (const [row, col] of shipCoords) {
     if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
       return false;
@@ -113,25 +167,8 @@ function checkShipPlacement(shipCoords) {
   return true;
 }
 
-let statusDisplay = null;
-
-function createStatusDisplay() {
-  if (!statusDisplay) {
-    statusDisplay = document.createElement("div");
-    statusDisplay.id = "status-display";
-    document.getElementById("game").appendChild(statusDisplay);
-  }
-}
-
-function updateStatusDisplay(status) {
-  if (!statusDisplay) {
-    createStatusDisplay();
-  }
-  statusDisplay.textContent = status;
-}
-
-function handleCellClick(row, col, cell) {
-  if (board[row][col] === "hit" || board[row][col] === "miss") {
+function handleCellClick(row, col, cell, board) {
+  if (!playerTurn || board[row][col] === "hit" || board[row][col] === "miss") {
     return;
   }
 
@@ -140,6 +177,7 @@ function handleCellClick(row, col, cell) {
     cell.classList.add("hit");
     cell.textContent = "X";
     updateStatusDisplay("Player " + currentPlayer + " has hit a ship!");
+    aiBoard[row][col] = "hit";
     checkGameOver();
   } else {
     board[row][col] = "miss";
@@ -149,6 +187,10 @@ function handleCellClick(row, col, cell) {
 
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     displayCurrentPlayerTurn();
+
+    playerTurn = false;
+
+    setTimeout(aiTurn, 2000);
   }
 }
 
@@ -161,6 +203,8 @@ function checkGameOver() {
     }
   }
   alert("Game Over!");
+
+  playerTurn = false;
 }
 
 let currentPlayer = 1;
@@ -176,4 +220,55 @@ function displayCurrentPlayerTurn() {
   currentTurnDisplay.textContent = `Player ${currentPlayer}'s Turn`;
 }
 
-displayCurrentPlayerTurn();
+function aiTurn() {
+  let row, col;
+  do {
+    row = Math.floor(Math.random() * ROWS);
+    col = Math.floor(Math.random() * COLS);
+  } while (aiBoard[row][col] === "hit" || aiBoard[row][col] === "miss");
+
+  const cell = aiTable.rows[row].cells[col];
+
+  if (aiBoard[row][col] === "ship") {
+    aiBoard[row][col] = "hit";
+    cell.classList.add("hit");
+    cell.textContent = "X";
+    updateStatusDisplay("AI has hit a ship!");
+    checkGameOver();
+    setTimeout(aiTurn, 2000);
+  } else {
+    aiBoard[row][col] = "miss";
+    cell.classList.add("miss");
+    cell.textContent = "X";
+    updateStatusDisplay("AI has missed.");
+
+    currentPlayer = 1;
+    displayCurrentPlayerTurn();
+
+    playerTurn = true;
+  }
+}
+
+function createStatusDisplay() {
+  statusDisplay = document.createElement("div");
+  statusDisplay.id = "status-display";
+  document.getElementById("game").appendChild(statusDisplay);
+}
+
+function updateStatusDisplay(status) {
+  let statusDisplay = document.getElementById("status-display");
+
+  if (!statusDisplay) {
+    createStatusDisplay();
+    statusDisplay = document.getElementById("status-display");
+  }
+
+  statusDisplay.textContent = status;
+}
+
+function initializeGame() {
+  displayCurrentPlayerTurn();
+  playerTurn = true;
+}
+
+initializeGame();
